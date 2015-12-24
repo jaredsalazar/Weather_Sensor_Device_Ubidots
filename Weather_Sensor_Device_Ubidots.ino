@@ -1,5 +1,4 @@
 #include <LBattery.h>
-#include <DHT.h>
 #include <GPRSL.h>
 #include <easyLStorage.h>
 #include <Time.h>
@@ -14,9 +13,6 @@ int BatteryLv;
 boolean ChargeStat = false;
 
 //DHT GLOBAL
-#define DHTPIN 19     // what digital pin we're connected to
-#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-DHT dht(DHTPIN, DHTTYPE);
 String Humidity, Temperature;
 
 //STORAGE GLOBAL
@@ -50,9 +46,8 @@ void setup() {
   Serial.println("Serial Start...");
 
   //DHT Start
-  dht.begin();
-  while (!InitializeDHT()); //get initial value
-  Serial.println("Serial Start...");
+  HSM20GRead(); //get initial value
+  Serial.println("Temp and Humid Start...");
 
 
   //SD Start
@@ -106,9 +101,9 @@ void loop() {
     delay(200);
   }
 
-  if (currentminute - lastDHTtime >= 200) { // read temperature and sensor every 200 milliseconds
+  if (currentminute - lastDHTtime >= 2000) { // read temperature and sensor every 2000 milliseconds
     //read sensor values
-    dhtRead();
+    HSM20GRead();
     Serial.print("Temp: " + Temperature );
     Serial.println("  Humid: " + Humidity + "%");
     lastDHTtime = currentminute;
@@ -143,6 +138,7 @@ void loop() {
     lastSendMinute = currentminute;
   }
   checkSD();
+  delay(200);
 }
 
 void deviceInfo() {

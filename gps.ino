@@ -14,7 +14,7 @@ boolean GPSsync(boolean timesync) {
     LGPS.getData(&info);
     gpsStream = (char*)info.GPRMC;
     Serial.println(gpsStream);
-    dhtRead();                    //read temperature and humidity values while in-sync
+    HSM20GRead();                    //read temperature and humidity values while in-sync
     parser(gpsStream);            // parse gpsStream
 
     second = (int(data[1][4]) - 48) * 10 + (int(data[1][5]) - 48);
@@ -40,7 +40,7 @@ boolean GPSsync(boolean timesync) {
 
 
     if (year < 70 && year >= 15 && lng > 0) {
-      dhtRead();
+      HSM20GRead(); 
       if (lat != 0.0 || lng != 0.0) {
         sprintf(cGPSLat, "%Lf", lat);
         sprintf(cGPSLng, "%Lf", lng);
