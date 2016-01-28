@@ -67,6 +67,7 @@ boolean rtcSynced() {
   if (t.year >= 2015)
   {
     LGPS.powerOff();
+    Log("GPS OFF....");
     gps_on = 0;
     Serial.println("Synced! Turning off GPS. Please wait...");
     
@@ -79,6 +80,7 @@ void getGPSData() {
   if (gps_on == 0) {
     Log("GPS ON....");
     LGPS.powerOn();
+    gps_on = 1;
   }
   LGPS.getData(&info);
   gpsStream = (char*)info.GPRMC;
@@ -101,6 +103,7 @@ String getLatitude() {
     getGPSData();
   } else if (gps_on == 1) {
     LGPS.powerOff();
+    Log("GPS OFF....");
     gps_on = 0;
   }
   double d;
@@ -120,6 +123,7 @@ String getLongitude() {
     getGPSData();
   } else if (gps_on == 1) {
     LGPS.powerOff();
+    Log("GPS OFF....");
     gps_on = 0;
   }
   double d;
