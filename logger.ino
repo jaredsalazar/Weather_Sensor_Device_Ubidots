@@ -11,7 +11,9 @@ void StorageStart() {
 void checkResponse(String val, String response) {
   if (response != "200" && response != "201" && response != "400") {
     sd.cacheData(val, tempStorage);
-    Log(response);
+    Log(response + " : caching data");
+  } else if (response == "200" || response == "201") {
+    Log("Sent...");
   }
 }
 
@@ -21,12 +23,14 @@ void Log(String _stat) {
 }
 
 boolean checkSD() {
+  delay(100);
   String data = sd.getData(tempStorage);
   if (data == "") {
     return false;
   } else {
     String response = gprsSend(data);
     if (response == "200" || response == "201") {
+      Log("Cached data Sent...");
       sd.deleteData(tempStorage);
       return true;
     } else if (response == "400") {
