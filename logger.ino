@@ -1,11 +1,15 @@
 //STORAGE GLOBAL
 easyLStorage sd;
-String tempStorage = "temp.log";
-String Statlog = "stat.log";
+String tempStorage = "temp.txt";
+String Statlog = "DevStat.log";
 
 void StorageStart() {
-  sd.start(tempStorage);
+  delay(100);
+  sd.start("temporary.log");
+  delay(100);
   sd.start(Statlog);
+  delay(100);
+  sd.start("temporary.log");
 }
 
 void checkResponse(String val, String response) {
@@ -18,16 +22,19 @@ void checkResponse(String val, String response) {
 }
 
 void Log(String _stat) {
-  String stat = String(rtcNow()) + " : " + _stat;
+  delay(10);
+  String stat = String(timeNow()) + " : " + _stat;
   sd.cacheData(stat, Statlog);
 }
 
 boolean checkSD() {
-  delay(100);
-  String data = sd.getData(tempStorage);
+  delay(10);
+  String data = "";
+  data = sd.getData(tempStorage);
   if (data == "") {
     return false;
   } else {
+
     String response = gprsSend(data);
     if (response == "200" || response == "201") {
       Log("Cached data Sent...");
@@ -39,6 +46,7 @@ boolean checkSD() {
       return true;
     } else {
       Log(response);
+      return true;
     }
   }
 }
