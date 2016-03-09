@@ -1,86 +1,78 @@
 #include <LGPS.h>
 #include <LDateTime.h>
 #include <LBattery.h>
-#include <GPRSL.h>
 #include <easyLStorage.h>
+#include <LGPRS.h>      //include the base GPRS library
+#include <LGPRSClient.h>
+#include <LTask.h>
+#include "vmthread.h"
 
-GPRSL global;
-int LastSendTime = 0,nowSending = 0, reboot_count = 0;
+int LastSendTime = 0, nowSending = 0, reboot_count = 0;
 const int send_interval = 60000;
 
 void setup() {
+  delay(30000);
   Serial.begin(9600);
+
   blinkSetup();
 
-  LTask.begin();
-
-  Serial.println("RTC Sync...");
-  rtcSync();
-
-  global.START();
-
   StorageStart();
-  Log("Device Starting....");
+  Log("Device Starting...");
 
+  rtcSync();
+  Log("RTC Synced");
+
+  gprsStart();
+  Log("GPRS Attached");
+
+  Serial.println("Attaching rain sensor");
   rainSensorAttach();
+  Log("Rain Sensor Interupt Attached..");
 
   blinker(3000);
 
+  Serial.println("creating Thread...");
+  delay(100);
   LTask.remoteCall(createThread, NULL);
+  Serial.println("Thread created");
   delay(15000);
 }
 
 void loop() {
-  if ((millis()) - LastSendTime > send_interval) {
-    Log("Sending now...");
-    nowSending = 1;
-    LastSendTime = millis();
-    String var = jsonContruct();
-    String response = gprsSend(var);
-    Serial.println(response);
-    checkResponse(var, response);
-    blinker(100);
-    delay(100);
-  }
-  if (!checkSD()) {
-    int delayTime = send_interval - millis() + LastSendTime;
-    if (delayTime < 0) {
-      delayTime = 0;
-    }
-    Serial.print("delay Time: ");
-    Serial.println(delayTime);
-    nowSending = 0;
-    delay(delayTime);
-  } else {
-    delay(10);
-  }
+  delay(100);
 }
-
 boolean createThread(void* userdata) {
-  vm_thread_create(blinker_thread, NULL, 0);
+  // The priority can be 1 - 255 and default priority are 0
+  // the arduino priority are 245
+  vm_thread_create(send_tread, NULL, 0);
   return true;
 }
 
-boolean call_reboot(void* userdata) {
-  vm_reboot_normal_start();
-  return true;
-}
-
-VMINT32 blinker_thread(VM_THREAD_HANDLE thread_handle, void* user_data) {
+VMINT32 send_tread(VM_THREAD_HANDLE thread_handle, void* user_data)
+{
   for (;;)
   {
-    if(nowSending == 0){
-      Serial.printf("\nblinker thread... still running %d \n", reboot_count);
-    if (reboot_count == 360) {
-      Serial.printf("\nReboot...\n");
-      Log("Device reboot...");
-      LTask.remoteCall(call_reboot, NULL);
-    }
-    blinker(100);
-    reboot_count++;
-    delay(10000);
-    }else{
+    if ((millis()) >= LastSendTime + send_interval) {
+      LastSendTime = millis();
+      Log("Sending now...");
       delay(100);
+      String var = jsonContruct();
+      Serial.println("sending now...");
+      String response = gprsSend(var);
+      Serial.println(response);
+      checkResponse(var, response);
+      blinker(100);
+    } else if (!checkSD()) {
+      Serial.println("sending from storage... done");
+      int delay_time = send_interval - (millis() - LastSendTime);
+      if(delay_time < 0){
+        delay_time = 10;
+      }
+      Serial.printf("\ndelay: %d",delay_time);
+      delay(delay_time);
+    } else {
+      Serial.println("delaying....");
+      delay(10);
     }
   }
   return 0;
