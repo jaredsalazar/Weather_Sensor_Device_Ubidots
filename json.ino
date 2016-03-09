@@ -14,8 +14,10 @@ String jsonContruct() {
 
   //Time and GPS
   String currentTimestamp = String(rtcNow());
-  String latitude = getLatitude(); 
+  String latitude = getLatitude();
   String longitude = getLongitude();
+
+  Serial.println("got all variables. Generating payload..");
 
   //Contruct JSON
   String val = "{\"value\":"
