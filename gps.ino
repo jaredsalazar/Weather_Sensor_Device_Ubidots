@@ -1,83 +1,153 @@
+datetimeInfo t;
+unsigned int rtc;
+
 char* gpsStream;
-long double GPSLat = 0, GPSLng = 0;
-String sGPSLat, sGPSLng;
 gpsSentenceInfoStruct info;
 String data[13];
+char *_token;
+const char s[2] = ",";
 
-boolean GPSsync(boolean timesync) {
+int gps_on = 0; //This is used to check if the GPS needs to be turned off
 
-  int second, minute, hour, year, month, day;
-  int SyncTimeStart = millis();
+String timeNow() {
+  LDateTime.getTime(&t);
+  String timeNow = String(t.year)
+                   + "/" + String(t.mon)
+                   + "/" + String(t.day)
+                   + " " + String(t.hour)
+                   + ":" + String(t.min)
+                   + ":" + String(t.sec);
+  Serial.print("Time: ");
+  Serial.println(timeNow);
+  return timeNow;
+}
 
-  while (timeSynced == false) {
+int rtcNow() {
+  LDateTime.getRtc(&rtc);
+  Serial.print(" Seconds since 1/1/1970 GMT: ");
+  Serial.println(rtc);
+  return rtc;
+}
 
-    LGPS.getData(&info);
-    gpsStream = (char*)info.GPRMC;
-    Serial.println(gpsStream);
-    HSM20GRead();                    //read temperature and humidity values while in-sync
-    parser(gpsStream);            // parse gpsStream
-
-    second = (int(data[1][4]) - 48) * 10 + (int(data[1][5]) - 48);
-    minute = (int(data[1][2]) - 48) * 10 + (int(data[1][3]) - 48);
-    hour   = (int(data[1][0]) - 48) * 10 + (int(data[1][1]) - 48);
-    year   = (int(data[9][4]) - 48) * 10 + (int(data[9][5]) - 48);
-    month  = (int(data[9][2]) - 48) * 10 + (int(data[9][3]) - 48);
-    day    = (int(data[9][0]) - 48) * 10 + (int(data[9][1]) - 48);
-
-    double d;
-    d = strtod(data[3].c_str(), NULL);
-    int deg = d / 100;
-    double lat = deg + ((d / 100 - deg) * 100) / 60;
-
-    d = strtod(data[5].c_str(), NULL);
-    deg = d / 100;
-    double lng = deg + ((d / 100 - deg) * 100) / 60;
-
-    if (year < 70 && year >= 15 && lng > 0 && timesync == true) {
-      setTime(hour, minute, second, day, month, 2000 + year);
-      Log("Time Synced");
-    }
-
-
-    if (year < 70 && year >= 15 && lng > 0) {
-      HSM20GRead(); 
-      if (lat != 0.0 || lng != 0.0) {
-        sprintf(cGPSLat, "%Lf", lat);
-        sprintf(cGPSLng, "%Lf", lng);
-        sGPSLat = cGPSLat;
-        sGPSLng = cGPSLng;
-        Serial.println("Lat: " + sGPSLat + " Lng: " + sGPSLng);
-        //Serial.printf("Lat: %Lf  Lng: %Lf\n", lat, lng)
-        Log("Resync Success");
-        return true;
-        break;
-      }
-    }
-
-    int currentSyncTime = millis();
-    if (currentSyncTime - SyncTimeStart >= 300000) {
-      Log("Resync Failed...");
-      return false;
-      break;
-    }
-
-    delay(200);
+void rtcSync() {
+  while (!rtcSynced()) {
+    Serial.println("Syncing....");
+    //Wait one second before getting new time.
+    delay(1000);
   }
 }
 
-String* parser(char* gpsStream) {
-  char *token;
-  const char s[2] = ",";
+boolean rtcSynced() {
+  getGPSData();
+  t.sec   = (int(data[1][4]) - 48) * 10 + (int(data[1][5]) - 48);
+  t.min   = (int(data[1][2]) - 48) * 10 + (int(data[1][3]) - 48);
+  t.hour  = (int(data[1][0]) - 48) * 10 + (int(data[1][1]) - 48);
+  t.year  = (int(data[9][4]) - 48) * 10 + (int(data[9][5]) - 48);
+  if (t.year < 70 && t.year >= 15) {
+    t.year += 2000;
+  }
 
-  token = strtok(gpsStream, s);
+  t.mon   = (int(data[9][2]) - 48) * 10 + (int(data[9][3]) - 48);
+  t.day   = (int(data[9][0]) - 48) * 10 + (int(data[9][1]) - 48);
+  LDateTime.setTime(&t);
+  LDateTime.getTime(&t);
+  LDateTime.getRtc(&rtc);
+  Serial.print("Current GMT: ");
+  Serial.print(t.mon);
+  Serial.print("/");
+  Serial.print(t.day);
+  Serial.print("/");
+  Serial.print(t.year);
+  Serial.print(" ");
+  Serial.print(t.hour);
+  Serial.print(":");
+  Serial.print(t.min);
+  Serial.print(":");
+  Serial.print(t.sec);
+  Serial.print(" Seconds since 1/1/1970 GMT: ");
+  Serial.println(rtc);
+  //Turning on the GPS syncs up the RTC with the GPS time.
+  //If the battery is pulled, the RTC goes back a couple years.
+  //Turning on the GPS syncs up the RTC with the GPS time.
+  //If the GPS is needed, t.year will be 2004. This will start this loop.
+  if ((gps_on != 1) && (t.year < 2015))
+  {
+    Serial.println("Using GPS to sync GMT. Please wait...");
+    LGPS.powerOn();
+    gps_on = 1;
+  }
+  //If the GPS has synced the RTC, the year will be 2015 or greater.
+  if (t.year >= 2015)
+  {
+    LGPS.powerOff();
+    Log("GPS OFF....");
+    gps_on = 0;
+    Serial.println("Synced! Turning off GPS. Please wait...");
+
+    return true;
+  }
+  return false;
+}
+
+void getGPSData() {
+  if (gps_on == 0) {
+    Log("GPS ON....");
+    LGPS.powerOn();
+    gps_on = 1;
+  }
+  LGPS.getData(&info);
+  gpsStream = (char*)info.GPRMC;
+  Serial.println(gpsStream);
+
+
+  _token = strtok(gpsStream, s);
   int k = 0;
   /* walk through other tokens */
-  while ( token != NULL )
+  while ( _token != NULL )
   {
-    data[k] = token;
-    token = strtok(NULL, s);
+    data[k] = _token;
+    _token = strtok(NULL, s);
     k++;
   }
-
-  return data;
 }
+
+String getLatitude() {
+  if (data[3] == 0) {
+    getGPSData();
+  } else if (gps_on == 1) {
+    LGPS.powerOff();
+    Log("GPS OFF....");
+    gps_on = 0;
+  }
+  double d;
+  char c_lat[10];
+  d = strtod(data[3].c_str(), NULL);
+  int deg = d / 100;
+  double _lat = deg + ((d / 100 - deg) * 100) / 60;
+  sprintf(c_lat, "%Lf", _lat);
+
+  String lat = c_lat;
+  return lat;
+}
+
+
+String getLongitude() {
+  if (data[5] == 0) {
+    getGPSData();
+  } else if (gps_on == 1) {
+    LGPS.powerOff();
+    Log("GPS OFF....");
+    gps_on = 0;
+  }
+  double d;
+  char c_lng[10];
+
+  d = strtod(data[5].c_str(), NULL);
+  int deg = d / 100;
+  double _lng = deg + ((d / 100 - deg) * 100) / 60;
+  sprintf(c_lng, "%Lf", _lng);
+
+  String lng = c_lng;
+  return lng;
+}
+

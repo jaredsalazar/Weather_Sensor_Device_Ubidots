@@ -1,4 +1,5 @@
-void HSM20GRead() {
+String* HSM20GRead() {
+  String* TH = new String[2];
   int humValue = analogRead(A0); // read humidity value from A0 pin
   float voltage = ((humValue * 5.0) / 1023.0); // convert analog value to voltage
 
@@ -8,8 +9,8 @@ void HSM20GRead() {
               + (64.81 * voltage)
               - 27.44;
 
-  Humidity = String(hum);
-  Serial.print("Humidity: " + Humidity);
+  TH[1] = String(hum);
+  Serial.print("Humidity: " + TH[1]);
   Serial.println(" %");
 
   delay(200);
@@ -23,8 +24,9 @@ void HSM20GRead() {
               + (68.87 * voltage_temp)
               - 17.81;
 
-  Temperature = String(tem);
-  Serial.print("Temperature: " + Temperature);
+  TH[0] = String(tem);
+  Serial.print("Temperature: " + TH[0]);
   Serial.println(" C");
-}
 
+  return TH;
+}
