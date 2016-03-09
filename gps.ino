@@ -9,6 +9,19 @@ const char s[2] = ",";
 
 int gps_on = 0; //This is used to check if the GPS needs to be turned off
 
+String timeNow() {
+  LDateTime.getTime(&t);
+  String timeNow = String(t.year)
+                   + "/" + String(t.mon)
+                   + "/" + String(t.day)
+                   + " " + String(t.hour)
+                   + ":" + String(t.min)
+                   + ":" + String(t.sec);
+  Serial.print("Time: ");
+  Serial.println(timeNow);
+  return timeNow;
+}
+
 int rtcNow() {
   LDateTime.getRtc(&rtc);
   Serial.print(" Seconds since 1/1/1970 GMT: ");
@@ -70,7 +83,7 @@ boolean rtcSynced() {
     Log("GPS OFF....");
     gps_on = 0;
     Serial.println("Synced! Turning off GPS. Please wait...");
-    
+
     return true;
   }
   return false;
